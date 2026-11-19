@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lava Jato Aju</title>
+<style>
+  body { font-family: Arial, sans-serif; background: #f0f4f8; margin: 0; padding: 20px; color: #222; }
+  h1 { text-align: center; color: #1769aa; margin-bottom: 0; }
+  .sub { text-align: center; color: #666; margin-top: 4px; }
+  .caixa { background: white; max-width: 420px; margin: 20px auto; padding: 20px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+  .grande { max-width: 1000px; }
+  #resumo { white-space: pre-line; }
+  td:nth-child(4) { white-space: nowrap; }
+  .centro { text-align: center; }
+  label { display: block; margin-top: 12px; font-size: 14px; }
+  input, select { width: 100%; padding: 8px; font-size: 16px; margin-top: 4px; box-sizing: border-box; }
+  button { padding: 10px 16px; font-size: 16px; background: #1769aa; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 16px; margin-right: 8px; }
+  .cinza { background: #888; }
+  .vermelho { background: #c0392b; }
+  .pequeno { padding: 6px 10px; font-size: 14px; margin: 0; }
+  .link { background: none; color: #666; font-size: 13px; text-decoration: underline; }
+  .erro { color: #c0392b; min-height: 20px; margin: 10px 0 0 0; }
+  .verde { width: 90px; height: 90px; line-height: 90px; margin: 10px auto; border-radius: 50%; background: #27ae60; color: white; font-size: 56px; }
+  .tabela { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+</style>
+</head>
+<body>
+
+<h1>Lava Jato Aju</h1>
+<p class="sub">Estética automotiva a domicílio</p>
+
+<!-- tela 1: ficha do cliente -->
+<div id="telaFicha" class="caixa">
+  <h2>Agende sua lavagem</h2>
+
+  <label for="nome">Nome</label>
+  <input type="text" id="nome">
+
+  <label for="telefone">Telefone para contato (com DDD)</label>
+  <input type="tel" id="telefone" placeholder="(79) 99999-9999">
+
+  <label for="tipo">Tipo do veículo</label>
+  <select id="tipo">
+    <option value="">Selecione</option>
+    <option>Sedan</option>
+    <option>Hatch</option>
+    <option>SUV</option>
+    <option>Caminhonete</option>
+    <option>Caminhão</option>
+  </select>
+
+  <label for="ano">Ano do veículo</label>
+  <input type="number" id="ano">
+
+  <label for="endereco">Local da lavagem (endereço completo)</label>
+  <input type="text" id="endereco" placeholder="Rua, número, bairro, cidade">
+
+  <label for="agua">Tem ponto de água disponível?</label>
+  <select id="agua">
+    <option value="">Selecione</option>
+    <option>Sim</option>
+    <option>Não</option>
+  </select>
+
+  <label for="energia">Tem ponto de energia disponível?</label>
+  <select id="energia">
+    <option value="">Selecione</option>
+    <option>Sim</option>
+    <option>Não</option>
+  </select>
+
+  <label for="data">Data da lavagem</label>
+  <input type="date" id="data">
+
+  <label for="hora">Horário da lavagem</label>
+  <select id="hora">
+    <option value="">Escolha a data primeiro</option>
+  </select>
+
+  <p class="erro" id="erroFicha"></p>
+  <button id="btnMarcar" style="width:100%; margin-right:0">Marcar lavagem</button>
+  <p class="centro"><button class="link" id="btnArea">Área do Lava Jato</button></p>
+</div>
+
+<!-- tela 2: confirmação -->
+<div id="telaOk" class="caixa centro" style="display:none">
+  <h2>Lavagem marcada</h2>
+  <div class="verde">✓</div>
+  <p id="resumo"></p>
+  <button id="btnNovo">Fazer outro agendamento</button>
+</div>
+
+<!-- tela 3: senha -->
+<div id="telaSenha" class="caixa" style="display:none">
+  <h2>Área do Lava Jato</h2>
+  <label for="senha">Senha</label>
+  <input type="password" id="senha">
+  <p class="erro" id="erroSenha"></p>
+  <button id="btnEntrar">Entrar</button>
+  <button class="cinza" id="btnVoltar">Voltar</button>
+</div>
+
+<!-- tela 4: lista de cadastros -->
+<div id="telaLista" class="caixa grande" style="display:none">
+  <h2>Cadastros registrados</h2>
+  <p id="total"></p>
+  <div class="tabela">
+    <table>
+      <thead>
+        <tr><th>Data</th><th>Hora</th><th>Nome</th><th>Telefone</th><th>Tipo</th><th>Ano</th><th>Endereço</th><th>Água</th><th>Energia</th><th></th></tr>
+      </thead>
+      <tbody id="corpo"></tbody>
+    </table>
+  </div>
+  <button class="vermelho" id="btnApagarTodos">Apagar todos</button>
+  <button class="cinza" id="btnSair">Sair</button>
+</div>
+
+<script>
+var clientes = [];
+
+// horários de 2 em 2 horas, das 8 às 18
+var horarios = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00'];
+var tipos = ['Sedan', 'Hatch', 'SUV', 'Caminhonete', 'Caminhão'];
+
+// salva a lista no navegador
+function salvar() {
+  try {
+    localStorage.setItem('clientes', JSON.stringify(clientes));
+  } catch (erro) {
+    // se o navegador não deixar salvar, segue sem salvar
+  }
+}
+
+// transforma 2026-11-20 em 20/11/2026
+function virarData(texto) {
+  return texto.split('-').reverse().join('/');
+}
+
+// transforma um Date em 2026-11-20
+function formatarData(d) {
+  var mes = d.getMonth() + 1;
+  var dia = d.getDate();
+  if (mes < 10) mes = '0' + mes;
+  if (dia < 10) dia = '0' + dia;
+  return d.getFullYear() + '-' + mes + '-' + dia;
+}
+
+// clientes de exemplo (tipo, ano e hora sorteados)
+function gerarExemplos() {
+  var nomes = ['Marcos Oliveira', 'Juliana Santos', 'Rafael Almeida', 'Camila Ferreira',
+               'Thiago Costa', 'Patrícia Lima', 'Bruno Carvalho', 'Fernanda Ribeiro'];
+  var enderecos = ['Rua das Flores, 120 - Jardins, Aracaju/SE',
+                   'Rua das Palmeiras, 45 - Atalaia, Aracaju/SE',
+                   'Av. Central, 800 - Grageru, Aracaju/SE',
+                   'Rua do Sol, 33 - Farolândia, Aracaju/SE',
+                   'Rua Bela Vista, 210 - Siqueira Campos, Aracaju/SE',
+                   'Rua da Paz, 15 - Luzia, Aracaju/SE',
+                   'Rua Nova, 98 - Inácio Barbosa, Aracaju/SE',
+                   'Av. Principal, 560 - Centro, Aracaju/SE'];
+  var lista = [];
+  for (var i = 0; i < nomes.length; i++) {
+    var dia = new Date();
+    dia.setDate(dia.getDate() + i - 2);
+    lista.push({
+      nome: nomes[i],
+      telefone: '(79) 90000-' + (1000 + Math.floor(Math.random() * 9000)),
+      tipo: tipos[Math.floor(Math.random() * tipos.length)],
+      ano: 2008 + Math.floor(Math.random() * 18),
+      endereco: enderecos[i],
+      agua: Math.random() < 0.8 ? 'Sim' : 'Não',
+      energia: Math.random() < 0.8 ? 'Sim' : 'Não',
+      data: formatarData(dia),
+      hora: horarios[Math.floor(Math.random() * horarios.length)]
+    });
+  }
+  return lista;
+}
+
+// mostra só uma tela por vez
+function mostrar(tela) {
+  document.getElementById('telaFicha').style.display = 'none';
+  document.getElementById('telaOk').style.display = 'none';
+  document.getElementById('telaSenha').style.display = 'none';
+  document.getElementById('telaLista').style.display = 'none';
+  document.getElementById(tela).style.display = 'block';
+}
+
+// confere se já tem alguém marcado nesse dia e horário
+function horarioOcupado(data, hora) {
+  for (var i = 0; i < clientes.length; i++) {
+    if (clientes[i].data == data && clientes[i].hora == hora) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// monta a lista de horários do dia escolhido (os ocupados ficam bloqueados)
+function montarHorarios() {
+  var select = document.getElementById('hora');
+  var data = document.getElementById('data').value;
+  select.innerHTML = '';
+
+  var primeira = document.createElement('option');
+  primeira.value = '';
+  select.appendChild(primeira);
+
+  if (data == '') {
+    primeira.textContent = 'Escolha a data primeiro';
+    return;
+  }
+
+  var livres = 0;
+  for (var i = 0; i < horarios.length; i++) {
+    var hora = horarios[i];
+    var opcao = document.createElement('option');
+    opcao.value = hora;
+    opcao.textContent = hora;
+
+    if (horarioOcupado(data, hora)) {
+      opcao.textContent = hora + ' (ocupado)';
+      opcao.disabled = true;
+    } else if (new Date(data + 'T' + hora) < new Date()) {
+      opcao.textContent = hora + ' (já passou)';
+      opcao.disabled = true;
+    } else {
+      livres = livres + 1;
+    }
+    select.appendChild(opcao);
+  }
+
+  if (livres == 0) {
+    primeira.textContent = 'Sem horários livres neste dia';
+  } else {
+    primeira.textContent = 'Selecione o horário';
+  }
+}
+
+function limparFicha() {
+  document.getElementById('nome').value = '';
+  document.getElementById('telefone').value = '';
+  document.getElementById('tipo').value = '';
+  document.getElementById('ano').value = '';
+  document.getElementById('endereco').value = '';
+  document.getElementById('agua').value = '';
+  document.getElementById('energia').value = '';
+  document.getElementById('data').value = '';
+  document.getElementById('erroFicha').textContent = '';
+  montarHorarios();
+}
+
+function criarLinha(c) {
+  var linha = document.createElement('tr');
+  var campos = [virarData(c.data), c.hora, c.nome, c.telefone, c.tipo, c.ano, c.endereco, c.agua, c.energia];
+  for (var i = 0; i < campos.length; i++) {
+    var td = document.createElement('td');
+    td.textContent = campos[i] || '-';
+    linha.appendChild(td);
+  }
+
+  var tdBotao = document.createElement('td');
+  var botao = document.createElement('button');
+  botao.textContent = 'Excluir';
+  botao.className = 'vermelho pequeno';
+  botao.onclick = function () {
+    // primeiro clique pede confirmação, segundo clique exclui
+    if (botao.textContent == 'Excluir') {
+      botao.textContent = 'Tem certeza?';
+      return;
+    }
+    clientes.splice(clientes.indexOf(c), 1);
+    salvar();
+    mostrarLista();
+  };
+  tdBotao.appendChild(botao);
+  linha.appendChild(tdBotao);
+  return linha;
+}
+
+function mostrarLista() {
+  // ordena pela data e hora da lavagem
+  clientes.sort(function (a, b) {
+    if (a.data + a.hora < b.data + b.hora) return -1;
+    return 1;
+  });
+
+  var corpo = document.getElementById('corpo');
+  corpo.innerHTML = '';
+  for (var i = 0; i < clientes.length; i++) {
+    corpo.appendChild(criarLinha(clientes[i]));
+  }
+  document.getElementById('total').textContent = clientes.length + ' cadastro(s)';
+  document.getElementById('btnApagarTodos').textContent = 'Apagar todos';
+  mostrar('telaLista');
+}
+
+// ---------- ficha do cliente ----------
+document.getElementById('btnMarcar').onclick = function () {
+  var cliente = {
+    nome: document.getElementById('nome').value.trim(),
+    telefone: document.getElementById('telefone').value.trim(),
+    tipo: document.getElementById('tipo').value,
+    ano: document.getElementById('ano').value,
+    endereco: document.getElementById('endereco').value.trim(),
+    agua: document.getElementById('agua').value,
+    energia: document.getElementById('energia').value,
+    data: document.getElementById('data').value,
+    hora: document.getElementById('hora').value
+  };
+  var erro = document.getElementById('erroFicha');
+
+  if (cliente.nome == '' || cliente.telefone == '' || cliente.tipo == '' || cliente.ano == '' || cliente.endereco == '' ||
+      cliente.agua == '' || cliente.energia == '' || cliente.data == '' || cliente.hora == '') {
+    erro.textContent = 'Preencha todos os campos.';
+    return;
+  }
+  // o telefone precisa ter pelo menos DDD + número
+  if (cliente.telefone.replace(/\D/g, '').length < 10) {
+    erro.textContent = 'Digite o telefone com DDD.';
+    return;
+  }
+  if (cliente.ano < 1950 || cliente.ano > 2027) {
+    erro.textContent = 'Ano do veículo inválido.';
+    return;
+  }
+
+  // confere de novo se o horário ainda está livre
+  if (horarioOcupado(cliente.data, cliente.hora)) {
+    erro.textContent = 'Esse horário já foi ocupado. Escolha outro.';
+    montarHorarios();
+    return;
+  }
+
+  // não deixa marcar um horário que já passou
+  var marcada = new Date(cliente.data + 'T' + cliente.hora);
+  if (marcada < new Date()) {
+    erro.textContent = 'Escolha uma data e hora que ainda não passaram.';
+    return;
+  }
+
+  erro.textContent = '';
+  clientes.push(cliente);
+  salvar();
+
+  document.getElementById('resumo').textContent = cliente.nome + ' - ' + cliente.tipo + ' ' + cliente.ano + '\n' +
+    virarData(cliente.data) + ' às ' + cliente.hora + '\n' + cliente.endereco;
+  mostrar('telaOk');
+};
+
+document.getElementById('btnNovo').onclick = function () {
+  limparFicha();
+  mostrar('telaFicha');
+};
+
+// ---------- área com senha ----------
+document.getElementById('btnArea').onclick = function () {
+  document.getElementById('senha').value = '';
+  document.getElementById('erroSenha').textContent = '';
+  mostrar('telaSenha');
+  document.getElementById('senha').focus();
+};
+
+function entrar() {
+  var senha = document.getElementById('senha').value.trim();
+  if (senha == '1010') {
+    document.getElementById('erroSenha').textContent = '';
+    mostrarLista();
+  } else {
+    document.getElementById('erroSenha').textContent = 'Senha incorreta.';
+  }
+}
+
+document.getElementById('btnEntrar').onclick = entrar;
+
+// aperta Enter no campo da senha também entra
+document.getElementById('senha').onkeydown = function (e) {
+  if (e.key == 'Enter') {
+    entrar();
+  }
+};
+
+document.getElementById('btnVoltar').onclick = function () {
+  mostrar('telaFicha');
+};
+
+document.getElementById('btnSair').onclick = function () {
+  limparFicha();
+  mostrar('telaFicha');
+};
+
+document.getElementById('btnApagarTodos').onclick = function () {
+  var botao = document.getElementById('btnApagarTodos');
+  if (botao.textContent == 'Apagar todos') {
+    botao.textContent = 'Tem certeza?';
+    return;
+  }
+  clientes = [];
+  salvar();
+  mostrarLista();
+};
+
+// ---------- começo ----------
+// na primeira vez que abrir, carrega os clientes de exemplo
+var guardado = null;
+try {
+  guardado = localStorage.getItem('clientes');
+} catch (erro) {
+  // sem armazenamento, usa só a memória
+}
+
+if (guardado == null) {
+  clientes = gerarExemplos();
+  salvar();
+} else {
+  clientes = JSON.parse(guardado);
+}
+
+// quando escolhe a data, mostra os horários daquele dia
+document.getElementById('data').min = formatarData(new Date());
+document.getElementById('data').onchange = montarHorarios;
+</script>
+</body>
+</html>
